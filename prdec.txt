@@ -1,0 +1,32 @@
+FDED-                  5       COUT   .EQ $FDED
+0300-                  6       *------------------------------------
+0300-                  7       * Print Decimal with Leading Zero
+0300-                  8       *
+0300-A2 AF             9 (  2) PDW0   LDX #"0"-1   Start with ASCII zero-1
+0302-38               10 (  2)        SEC          Set up subtraction
+0303-E8               11 (  2) .1     INX          Increment ten's digit
+0304-E9 0A            12 (  2)        SBC #10      Take out ten
+0306-B0 FB            13 (2**)        BCS .1       Still more tens
+0308-69 BA            14 (  2)        ADC #"0"+10  Add back one ten, and make ASCII
+030A-48               15 (  3)        PHA          Save unit's digit
+030B-8A               16 (  2)        TXA          Get ten's digit
+030C-20 ED FD         17 (  6)        JSR COUT     Print ten's digit
+030F-68               18 (  4)        PLA          Get unit's digit
+0310-4C ED FD         19 (  3)        JMP COUT     and print it
+0313-                 20       *------------------------------------
+0313-                 21       * Print Decimal with Leading Space
+0313-                 22       *
+0313-A2 AF            23 (  2) PDSPC  LDX #"0"-1   Start with ASCII zero-1
+0315-38               24 (  2)        SEC          Set up subtraction
+0316-E8               25 (  2) .1     INX          Increment ten's digit
+0317-E9 0A            26 (  2)        SBC #10      Take out ten
+0319-B0 FB            27 (2**)        BCS .1       Still more tens
+031B-69 BA            28 (  2)        ADC #"0"+10  Add back one ten, and make ASCII
+031D-48               29 (  3)        PHA          Save unit's digit
+031E-8A               30 (  2)        TXA          Get ten's digit
+031F-C9 B0            31 (  2)        CMP #"0"     Print
+0321-D0 02            32 (2**)        BNE .2           00-09 as " 0" through " 9"
+0323-A9 A0            33 (  2)        LDA #" "
+0325-20 ED FD         34 (  6) .2     JSR COUT     Print ten's digit
+0328-68               35 (  4)        PLA          Get unit's digit
+0329-4C ED FD         36 (  3)        JMP COUT     and print it

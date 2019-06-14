@@ -1,0 +1,26 @@
+2000-                  5
+0000-                  6       MUL1L  .EQ $00  ;Multiplicand
+0001-                  7       MUL1H  .EQ $01
+0002-                  8       MUL2L  .EQ $02  ;Multiplier
+0003-                  9       MUL2H  .EQ $03
+0004-                 10       RSLTL  .EQ $04  ;Result
+0005-                 11       RSLTH  .EQ $05
+2000-                 12
+2000-A0 10            13 (  2) RMUL   LDY #16      16-BIT MULTIPLIER
+2002-A5 00            14 (  3) .1     LDA MUL1L      (MUL1 * MUL2) + RSLT
+2004-4A               15 (  2)        LSR          CHECK NEXT BIT OF MULTIPLIER
+2005-90 0D            16 (2**)        BCC .2       IF ZERO, DON'T ADD MULTIPLICAND
+2007-18               17 (  2)        CLC          ADD MULTIPLICAND TO PARTIAL PRODUCT
+2008-A5 02            18 (  3)        LDA MUL2L
+200A-65 04            19 (  3)        ADC RSLTL
+200C-85 02            20 (  2)        STA MUL2L
+200E-A5 03            21 (  3)        LDA MUL2H
+2010-65 05            22 (  3)        ADC RSLTH
+2012-85 03            23 (  2)        STA MUL2H
+2014-66 03            24 (  5) .2     ROR MUL2H    SHIFT PARTIAL PRODUCT
+2016-66 02            25 (  5)        ROR MUL2L
+2018-66 01            26 (  5)        ROR MUL1H
+201A-66 00            27 (  5)        ROR MUL1L
+201C-88               28 (  2)        DEY          NEXT BIT
+201D-D0 E3            29 (2**)        BNE .1       UNTIL ALL 16
+201F-60               30 (  6)        RTS

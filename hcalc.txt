@@ -1,0 +1,26 @@
+0300-                  5
+0300-                  6       *SAVE S.NEW.WOZ.HIRES.CALC
+0300-                  7       *--------------------------------
+0026-                  8       GBASL  .EQ $26
+0027-                  9       GBASH  .EQ $27
+00E6-                 10       HPAG2  .EQ $E6     Applesoft puts it here anyway.
+0300-                 11       *--------------------------------
+0300-0A               12 (  2) CALC   ASL          A--BCDEFGH0
+0301-AA               13 (  2)        TAX          TAX...TXA could be TAY...TYA
+0302-29 F0            14 (  2)        AND #$F0     A--BCDE0000
+0304-10 02            15 (2**)        BPL .1       B=0
+0306-09 05            16 (  2)        ORA #$05     A--BCDE0B0B
+0308-90 02            17 (2**) .1     BCC .2       A-0
+030A-09 0A            18 (  2)        ORA #$0A     A--BCDEABAB
+030C-0A               19 (  2) .2     ASL          B--CDEABAB0
+030D-0A               20 (  2)        ASL          C--DEABAB00
+030E-85 26            21 (  2)        STA GBASL
+0310-8A               22 (  2)        TXA          C--BCDEFGH0
+0311-29 0E            23 (  2)        AND #$0E     C--0000FGH0
+0313-65 E6            24 (  3)        ADC HPAG2    O--OOxxFGH0
+0315-                 25       *   HPAG2 = $10 for base $2000, $20 for base $4000
+0315-06 26            26 (  5)        ASL GBASL    D--00xxFGHC  GBASL=EABAB000
+0317-2A               27 (  2)        ROL          0--0xxFGHCD
+0318-85 27            28 (  2)        STA GBASH
+031A-60               29 (  6)        RTS
+031B-                 30       *--------------------------------

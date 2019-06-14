@@ -1,0 +1,276 @@
+﻿0000-                  5         ;
+0000-                  6         ; Mouse Handler (Apple //c)
+0000-                  7         ;
+0000-                  8         ; by Christopher A. Mosher
+0000-                  9         ;
+0000-                 10         ; May, 1987 (updated for ProDOS)
+0000-                 11         ; June, 1986
+0000-                 12         ;
+0000-                 13         ;    This program handles the mouse for use
+0000-                 14         ; by other programs.  It displays a cursor on
+0000-                 15         ; the eighty-column text screen, which the user
+0000-                 16         ; controls with the mouse.
+0000-                 17         ;    The program has three main parts: mouseon,
+0000-                 18         ; mouseoff, and Irqhndl.  mouseon installs the
+0000-                 19         ; interrupt handler’s entry address in the
+0000-                 20         ; interrupt vector table in the ProDOS System
+0000-                 21         ; Global Page; and then enables the mouse’s
+0000-                 22         ; movement interrupts.  mouseoff will deallocate
+0000-                 23         ; the interrupt and disable the mouse.  Irqhndl
+0000-                 24         ; is the interrupt request handler.  It’s
+0000-                 25         ; address is the one installed in the Global
+0000-                 26         ; Page, and it gets control at each interrupt.
+0000-                 27         ;
+0000-                 28
+0000-                 29         ; page $00 locations
+00FA-                 30 bas     .eq     $FA     ; text screen base address ($FA-$FB)
+0008-                 31 oldbas  .eq     $08     ; old text screen base address ($08-$09)
+00FE-                 32 row     .eq     $FE     ; storage for row
+00FF-                 33 col     .eq     $FF     ; storage for column
+0000-                 34
+0000-                 35         ; screen hole locations
+0478-                 36 minl    .eq     $0478   ; Clamping minimum to set (low)
+0578-                 37 minh    .eq     $0578   ; Clamping minimum to set (high)
+04F8-                 38 maxl    .eq     $04F8   ; Clamping maximum to set (low)
+05F8-                 39 maxh    .eq     $05F8   ; Clamping maximum to set (high)
+047C-                 40 mouxl   .eq     $047C   ; X coordinate (low)
+057C-                 41 mouxh   .eq     $057C   ; X coordinate (high)
+04FC-                 42 mouyl   .eq     $04FC   ; Y coordinate (low)
+05FC-                 43 mouyh   .eq     $05FC   ; Y coordinate (high)
+077C-                 44 moustat .eq     $077C   ; Mouse status byte:
+0000-                 45         ; bit      meaning
+0000-                 46         ; x....... button down
+0000-                 47         ; .x...... button down still
+0000-                 48         ; ..x..... movement since last read
+0000-                 49         ; ...x.... (reserved)
+0000-                 50         ; ....x... VBL interrupt has occurred
+0000-                 51         ; .....x.. button interrupt has occurred
+0000-                 52         ; ......x. movement interrupt has occurred
+0000-                 53         ; .......x (reserved)
+0000-                 54
+0000-                 55         ; ProDOS global page
+BF00-                 56 mli     .eq $BF00 ; Machine Language Interface entry
+0040-                 57 alloc_int       .eq $40
+0041-                 58 dealloc_int     .eq $41
+0000-                 59
+0000-                 60         ; I/O ROM locations
+C01C-                 61 page2sw .eq $C01C ; page two switch
+C054-                 62 page1   .eq $C054 ;   off: page1 (or main memory)
+C055-                 63 page2   .eq $C055 ;   on : page2 (or auxiliary memory)
+0000-                 64
+0000-                 65         ; slot ROM locations
+C412-                 66 mtable  .eq    $C412   ; Start of mouse ROM table
+0000-                 67 setm    .eq    $00     ; Set up mouse mode
+0001-                 68 servem  .eq    $01     ; Set up carry flag and MOUSTAT
+0004-                 69 posm    .eq    $04     ; Set mouse to X and Y coodinates
+0005-                 70 clampm  .eq    $05     ; Set clamping boundaries:
+0007-                 71 initm   .eq	$07 ; Set default values
+0000-                 72
+9700-                 73         .or    $9700
+9700-4C 14 97         74         jmp    mouseon ; turn on the mouse
+9703-4C 84 97         75         jmp    mouseoff ; turn off the mouse
+9706-                 76
+9706-42               77 cursor  .db $42 ; mouse cursor
+9707-                 78
+9707-                 79 parms   ; parameter list for MLI calls
+9707-02               80         .db     2
+9708-00               81         .db     $00
+9709-04 98            82         .dw     irqhndl
+970B-                 83
+970B-00 C4            84 mouse   .dw	$C400 ; address of mouse routine
+970D-00               85 mouxls  .db	$00 ; storage for X coordinate (low)
+970E-00               86 mouxhs  .db	$00 ; storage for X coordinate (high)
+970F-00               87 mouyls  .db	$00 ; storage for Y coordinate (low)
+9710-00               88 moustats        .db $00 ; storage for mouse status
+9711-00               89 oldchr  .db	$00 ; old character value
+9712-00               90 oldp2s  .db	$00 ; old page two switch setting
+9713-00               91 oldy    .db	$00 ; old Y register value
+9714-                 92
+9714-                 93 mouseon ; turn on the mouse
+9714-A9 02            94         lda     #2 ; allocate interrupt
+9716-8D 07 97         95         sta     parms
+9719-20 00 BF         96         jsr     mli
+971C-40               97         .db     alloc_int
+971D-07 97            98         .dw     parms
+971F-A2 07            99         ldx     #initm ; set default values
+9721-20 D0 97        100         jsr     mouser
+9724-A9 3C           101         lda     #$3C ; set clamping boundaries for X
+9726-8D F8 04        102         sta     maxl
+9729-A9 01           103         lda     #$01
+972B-8D F8 05        104         sta     maxh
+972E-A9 00           105         lda     #$00
+9730-8D 78 04        106         sta     minl
+9733-8D 78 05        107         sta     minh
+9736-A2 05           108         ldx     #clampm
+9738-20 D0 97        109         jsr     mouser
+973B-A9 B8           110         lda     #$B8 ; set clamping boundaries for Y
+973D-8D F8 04        111         sta     maxl
+9740-A9 00           112         lda     #$00
+9742-8D F8 05        113         sta     maxh
+9745-A9 01           114         lda     #$01
+9747-A2 05           115         ldx     #clampm
+9749-20 D0 97        116         jsr     mouser
+974C-A9 03           117         lda     #$03 ; set mouse to movement mode
+974E-A2 00           118         ldx     #setm
+9750-20 D0 97        119         jsr     mouser
+9753-A5 FE           120         lda     row ; set X and Y coordinates
+9755-0A              121         asl
+9756-0A              122         asl
+9757-0A              123         asl
+9758-8D FC 04        124         sta     mouyl
+975B-A9 00           125         lda     #$00
+975D-8D FC 05        126         sta     mouyh
+9760-A5 FF           127         lda     col
+9762-0A              128         asl
+9763-0A              129         asl
+9764-8D 7C 04        130         sta     mouxl
+9767-A9 00           131         lda     #$00
+9769-2A              132         rol
+976A-8D 7C 05        133         sta     mouxh
+976D-A2 04           134         ldx     #posm
+976F-20 D0 97        135         jsr     mouser
+9772-2C 1C C0        136         bit     page2sw ; store page2
+9775-08              137         php
+9776-20 55 98        138         jsr     newcur  ; output new cursor and restore and save values
+9779-8D 54 C0        139         sta     page1   ; restore page2
+977C-28              140         plp
+977D-10 03           141         bpl     exint
+977F-8D 55 C0        142         sta     page2
+9782-58              143 exint   cli      ; enable interrupts
+9783-60              144         rts
+9784-                145
+9784-                146 mouseoff        ; turn off the mouse
+9784-A9 00           147         lda     #$00    ; set mouse to off mode
+9786-A2 00           148         ldx     #setm
+9788-20 D0 97        149         jsr     mouser
+978B-2C 1C C0        150         bit     page2sw ; store page2
+978E-08              151         php
+978F-8D 54 C0        152         sta     page1 ; remove cursor
+9792-2C 12 97        153         bit     oldp2s
+9795-10 03           154         bpl     l7
+9797-8D 55 C0        155         sta     page2
+979A-AC 13 97        156 l7      ldy oldy
+979D-AD 11 97        157         lda     oldchr
+97A0-91 08           158         sta     (oldbas),y
+97A2-8D 54 C0        159         sta     page1 ; restore page2
+97A5-28              160         plp
+97A6-10 03           161         bpl     l9
+97A8-8D 55 C0        162         sta     page2
+97AB-AD 0F 97        163 l9      lda mouyls ; calculate ROW
+97AE-4A              164         lsr
+97AF-4A              165         lsr
+97B0-4A              166         lsr
+97B1-85 FE           167         sta     row
+97B3-4E 0E 97        168         lsr     mouxhs ; calculate COL
+97B6-6E 0D 97        169         ror     mouxls
+97B9-4E 0E 97        170         lsr     mouxhs
+97BC-6E 0D 97        171         ror     mouxls
+97BF-AD 0D 97        172         lda     mouxls
+97C2-85 FF           173         sta     col
+97C4-A9 01           174         lda     #1
+97C6-8D 07 97        175         sta     parms
+97C9-20 00 BF        176         jsr     mli ; deallocate interrupt
+97CC-41              177         .db     dealloc_int
+97CD-07 97           178         .dw     parms
+97CF-60              179         rts
+97D0-                180
+97D0-48              181 mouser  pha
+97D1-BD 12 C4        182         lda     mtable,x
+97D4-8D 0B 97        183         sta     mouse
+97D7-68              184         pla
+97D8-08              185         php
+97D9-78              186         sei
+97DA-20 FD 97        187         jsr     domsub
+97DD-6E 0B 97        188         ror     mouse
+97E0-AD 7C 04        189         lda     mouxl
+97E3-8D 0D 97        190         sta     mouxls
+97E6-AD 7C 05        191         lda     mouxh
+97E9-8D 0E 97        192         sta     mouxhs
+97EC-AD FC 04        193         lda     mouyl
+97EF-8D 0F 97        194         sta     mouyls
+97F2-AD 7C 07        195         lda     moustat
+97F5-8D 10 97        196         sta     moustats
+97F8-28              197         plp
+97F9-0E 0B 97        198         asl     mouse
+97FC-60              199         rts
+97FD-A2 C4           200 domsub  ldx #$C4
+97FF-A0 40           201         ldy     #$40
+9801-6C 0B 97        202         jmp     (mouse)
+9804-                203
+9804-                204 irqhndl ; interrupt handler
+9804-D8              205         cld     ;
+9805-A2 01           206         ldx     #servem ;
+9807-20 D0 97        207         jsr     mouser ; service mouse interrupt
+980A-B0 19           208         bcs     erirq ; if not mouse interrupt then exit
+980C-AD 10 97        209         lda     moustats ; get mouse status
+980F-4A              210         lsr     ; put movement bit
+9810-4A              211         lsr     ;         in carry
+9811-90 12           212         bcc     erirq ; if no movement then exit
+9813-2C 1C C0        213         bit     page2sw ; store page2
+9816-08              214         php
+9817-20 27 98        215         jsr     mvehndl ; handle movement
+981A-8D 54 C0        216         sta     page1 ; restore page2
+981D-28              217         plp
+981E-10 03           218         bpl     exirq
+9820-8D 55 C0        219         sta     page2
+9823-18              220 exirq   clc
+9824-89              221         .db     $89 ; bit absorbs sec
+9825-38              222 erirq   sec
+9826-60              223         rts
+9827-                224
+9827-                225 mvehndl ; movement handler
+9827-8D 54 C0        226         sta     page1 ; remove old cursor
+982A-A9 80           227         lda     #$80
+982C-2C 12 97        228         bit     oldp2s
+982F-10 03           229         bpl     l1
+9831-8D 55 C0        230         sta     page2
+9834-AC 13 97        231 l1      ldy oldy
+9837-AD 11 97        232         lda     oldchr
+983A-91 08           233         sta     (oldbas),y
+983C-AD 0F 97        234         lda     mouyls ; calculate ROW
+983F-4A              235         lsr
+9840-4A              236         lsr
+9841-4A              237         lsr
+9842-85 FE           238         sta     row
+9844-4E 0E 97        239         lsr     mouxhs ; calculate COL
+9847-6E 0D 97        240         ror     mouxls
+984A-4E 0E 97        241         lsr     mouxhs
+984D-6E 0D 97        242         ror     mouxls
+9850-AD 0D 97        243         lda     mouxls
+9853-85 FF           244         sta     col
+9855-A5 FE           245 newcur  lda row ; calculate base address
+9857-20 82 98        246         jsr     bascalc
+985A-8D 54 C0        247         sta     page1 ; choose main/aux memory
+985D-A5 FF           248         lda     col
+985F-4A              249         lsr
+9860-B0 03           250         bcs     l3
+9862-8D 55 C0        251         sta     page2
+9865-A8              252 l3      tay  ; output cursor and save old values
+9866-8C 13 97        253         sty     oldy
+9869-B1 FA           254         lda     (bas),y
+986B-8D 11 97        255         sta     oldchr
+986E-AD 06 97        256         lda     cursor
+9871-91 FA           257         sta     (bas),y
+9873-AD 1C C0        258         lda     page2sw
+9876-8D 12 97        259         sta     oldp2s
+9879-A5 FA           260         lda     bas
+987B-85 08           261         sta     oldbas
+987D-A5 FB           262         lda     bas+1
+987F-85 09           263         sta     oldbas+1
+9881-60              264         rts
+9882-                265
+9882-48              266 bascalc pha     ; text screen base address calculator (ROM)
+9883-4A              267         lsr
+9884-29 03           268         and     #3
+9886-09 04           269         ora     #4
+9888-85 FB           270         sta     bas+1
+988A-68              271         pla
+988B-29 18           272         and     #$18
+988D-90 02           273         bcc     bcs1
+988F-69 7F           274         adc     #$7F
+9891-85 FA           275 bcs1    sta bas
+9893-0A              276         asl
+9894-0A              277         asl
+9895-05 FA           278         ora     bas
+9897-85 FA           279         sta     bas
+9899-60              280         rts

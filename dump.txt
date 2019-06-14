@@ -1,0 +1,155 @@
+0800-                  4               .OR     $800
+0800-                  5       ***********************************************************
+0800-                  6       *                                                         *
+0800-                  7       * DUMP:THIS PROGRAM WILL ALLOW ITS USER TO DUMP AN ENTIRE *
+0800-                  8       *      TRACK IN ITS RAW FORM INTO MEMORY FOR EXAMINATION. *
+0800-                  9       *                                                         *
+0800-                 10       * INPUT: $02 = TRACK TO BE READ                           *
+0800-                 11       *                                                         *
+0800-                 12       * OUTPUT:$1000 = ADDRESS OF TRACK IMAGE                   *
+0800-                 13       *                                                         *
+0800-                 14       * ENTRY POINT: $800                                       *
+0800-                 15       *                                                         *
+0800-                 16       * PROGRAMMER: DON D WORTH 2/19/81                         *
+0800-                 17       *                                                         *
+0800-                 18       ***********************************************************
+0800-                 19
+0800-                 20       *       ZPAGE DEFINITIONS
+0800-                 21
+0000-                 22       PTR .EQ $0 WORK POINTER
+0002-                 23       TRACK .EQ $2 TRACK TO BE READ/WRITTEN
+003C-                 24       A1L .EQ $3C MONITOR POINTER
+003E-                 25       A2L .EQ $3E MONITOR POINTER
+0048-                 26       PREG .EQ $48 MONITOR STATUS REGISTER
+0800-                 27
+0800-                 28       *       OTHER ADDRESSES
+0800-                 29
+1000-                 30       BUFFER .EQ $1000 TRACK IMAGE AREA
+03E3-                 31       LOCRPL .EQ $3E3 LOCATE RWTS PARMLIST SUBRTN
+03D9-                 32       RWTS .EQ $3D9 RWTS SUBROUTINE
+FDED-                 33       COUT .EQ $FDED PRINT ONE CHAR SUBROUTINE
+FDB3-                 34       XAM .EQ $FDB3 MONITOR HEX DUMP SUBRTN
+0800-                 35
+0800-                 36       *       DISK I/O SELECTS
+0800-                 37
+C080-                 38       DRVSM0 .EQ $C080 STEP MOTOR POSITIONS
+C081-                 39       DRVSM1 .EQ $C081
+C082-                 40       DRVSM2 .EQ $C082
+C083-                 41       DRVSM3 .EQ $C083
+C084-                 42       DRVSM4 .EQ $C084
+C085-                 43       DRVSM5 .EQ $C085
+C086-                 44       DRVSM6 .EQ $C086
+C087-                 45       DRVSM7 .EQ $C087
+C088-                 46       DRVOFF .EQ $C088 TURN DRIVE OFF AFTER 6 REVS
+C089-                 47       DRVON .EQ $C089 TURN DRIVE ON
+C08A-                 48       DRVSL1 .EQ $C08A SELECT DRIVE 1
+C08B-                 49       DRVSL2 .EQ $C08B SELECT DRIVE 2
+C08C-                 50       DRVRD .EQ $C08C READ DATA LATCH
+C08D-                 51       DRVWR .EQ $C08D WRITE DATA LATCH
+C08E-                 52       DRVRDM .EQ $C08E SET READ MODE
+C08F-                 53       DRVWRM .EQ $C08F SET WRITE MODE
+0800-                 54
+0800-                 55       *       RWTS PARMLIST DEFINITION
+0800-                 56
+0800-00               57       RPLIOB .DA #0 IOB TYPE ($01)
+0801-00               58       RPLSLT .DA #0 SLOT*16
+0802-00               59       RPLDRV .DA #0 DRIVE
+0803-00               60       RPLVOL .DA #0 VOLUME
+0804-00               61       RPLTRK .DA #0 TRACK
+0805-00               62       RPLSEC .DA #0 SECTOR
+0806-00               63       RPLDCT .DA #0000 ADDRESS OF DCT
+0807-00               64       RPLBUF .DA #0000 ADDRESS OF BUFFER
+0808-00               65       RPLSIZ .DA #0000 SECTOR SIZE
+0809-00               66       RPLCMD .DA #0 COMMAND CODE
+0000-                 67       RPLCNL .EQ $00    NULL COMMAND
+0001-                 68       RPLCRD .EQ $01    READ COMMAND
+0002-                 69       RPLCWR .EQ $02    WRITE COMMAND
+0004-                 70       RPLCFM .EQ $04    FORMAT COMMAND
+080A-00               71       RPLRCD .DA #0 RETURN CODE
+0010-                 72       RPLRWP .EQ $10    WRITE PROTECTED
+0020-                 73       RPLRVM .EQ $20    VOLUME MISMATCH
+0040-                 74       RPLRDE .EQ $40    DRIVE ERROR
+0080-                 75       RPLRRE .EQ $80    READ ERROR
+080B-00               76       RPLTVL .DA #0 TRUE VOLUME
+080C-00               77       RPLPSL .DA #0 PREVIOUS SLOT
+080D-00               78       RPLPDR .DA #0 PREVIOUS DRIVE
+080E-                 79
+080E-                 80       *       USE RWTS TO POSITION THE ARM TO THE DESIRED TRACK
+080E-                 81
+080E-20 E3 03         82 (  6) DUMP JSR LOCRPL LOCATE RWTS PARMLIST
+0811-84 00            83 (  3)  STY PTR AND SAVE POINTER
+0813-85 01            84 (  2)  STA PTR+1
+0815-                 85
+0815-A5 02            86 (  3)  LDA TRACK GET TRACK TO READ/WRITE
+0817-A0 04            87 (  2)  LDY #RPLTRK STORE IN RWTS LIST
+0819-91 00            88 (  6)  STA (PTR),Y
+081B-                 89
+081B-A9 00            90 (  2)  LDA #RPLCNL NULL OPERATION
+081D-A0 09            91 (  2)  LDY #RPLCMD AND STORE IN LIST
+081F-91 00            92 (  6)  STA (PTR),Y
+0821-                 93
+0821-A9 00            94 (  2)  LDA #0 ANY VOLUME WILL DO
+0823-A0 03            95 (  2)  LDY #RPLVOL
+0825-91 00            96 (  6)  STA (PTR),Y
+0827-20 E3 03         97 (  6)  JSR LOCRPL RELOAD POINTER TO PARMS
+082A-20 D9 03         98 (  6)  JSR RWTS CALL RWTS
+082D-A9 00            99 (  2)  LDA #0
+082F-85 48           100 (  2)  STA PREG FIX P REG SO DOS IS HAPPY
+0831-                101
+0831-                102       *       PREPARE TO DUMP TRACK TO MEMORY
+0831-                103
+0831-A0 01           104 (  2)  LDY #RPLSLT GET SLOT*16
+0833-B1 00           105 ( 5*)  LDA (PTR),Y
+0835-AA              106 (  2)  TAX
+0836-BD 89 C0        107 ( 4*)  LDA DRVON,X KEEP DRIVE ON
+0839-BD 8E C0        108 ( 4*)  LDA DRVRDM,X INSURE READ MODE
+083C-                109
+083C-A9 10           110 (  2)  LDA #BUFFER/$100 POINT AT DATA
+083E-85 00           111 (  2)  STA PTR
+0840-A9 00           112 (  2)  LDA #BUFFER
+0842-85 01           113 (  2)  STA PTR+1
+0844-A0 00           114 (  2)  LDY #0
+0846-                115
+0846-                116       *       START DUMPING AT THE BEGINNING OF A SECTOR ADDRESS
+0846-                117       *       FIELD OR A SECTOR DATA FIELD
+0846-                118
+0846-BD 8C C0        119 ( 4*) LOOP1 LDA DRVRD,X WAIT FOR NEXT BYTE
+0849-10 FB           120 (2**)  BPL LOOP1
+084B-C9 FF           121 (  2)  CMP #$FF AUTOSYNC?
+084D-D0 F7           122 (2**)  BNE LOOP1 NO, DON'T START IN MIDDLE
+084F-BD 8C C0        123 ( 4*) LOOP2 LDA DRVRD,X WAIT FOR NEXT BYTE
+0852-10 FB           124 (2**)  BPL LOOP2
+0854-C9 FF           125 (  2)  CMP #$FF TWO AUTOSYNCS?
+0856-D0 EE           126 (2**)  BNE LOOP1 NOT YET
+0858-BD 8C C0        127 ( 4*) LOOP3 LDA DRVRD,X
+085B-10 FB           128 (2**)  BPL LOOP3
+085D-C9 FF           129 (  2)  CMP #$FF STILL AUTOSYNCS?
+085F-F0 F7           130 (2**)  BEQ LOOP3 YES, WAIT FOR DATA BYTE
+0861-D0 05           131 (2**)  BNE LOOP4 ELSE, START STORING DATA
+0863-                132
+0863-                133       *       ONCE ALIGNED, BEGIN COPYING THE TRACK TO MEMORY.
+0863-                134       *       COPY AT LEAST TWICE ITS LENGTH TO INSURE WE GET IT
+0863-                135       *       ALL.
+0863-                136
+0863-BD 8C C0        137 ( 4*) LOOPD LDA DRVRD,X WAIT FOR NEXT DATA BYTE
+0866-10 FB           138 (2**)  BPL LOOPD
+0868-91 00           139 (  6) LOOP4 STA (PTR),Y STORE IN MEMORY
+086A-E6 00           140 (  5)  INC PTR BUMP POINTER
+086C-D0 F5           141 (2**)  BNE LOOPD
+086E-E6 01           142 (  5)  INC PTR+1
+0870-A5 01           143 (  3)  LDA PTR+1
+0872-C9 40           144 (  2)  CMP #$40 DONE AT LEAST A TRACK?
+0874-90 ED           145 (2**)  BCC LOOPD NO, CONTINUE
+0876-BD 88 C0        146 ( 4*)  LDA DRVOFF,X TURN DRIVE OFF
+0879-                147
+0879-                148       *       WHEN FINISHED, DUMP SOME OF TRACK IN HEX ON SCREEN
+0879-                149
+0879-A9 10           150 (  2) EXIT LDA #BUFFER/$100 DUMP 800.8AF
+087B-85 3C           151 (  2)  STA A1L
+087D-A9 00           152 (  2)  LDA #BUFFER
+087F-85 3D           153 (  2)  STA A1L+1
+0881-A9 BF           154 (  2)  LDA #BUFFER/$100+$AF
+0883-85 3E           155 (  2)  STA A2L
+0885-A9 AF           156 (  2)  LDA #BUFFER+$AF
+0887-85 3F           157 (  2)  STA A2L+1
+0889-4C B3 FD        158 (  3)  JMP XAM EXIT VIA HEX DISPLAY
