@@ -1,0 +1,51 @@
+08FC-00 09             6         .DA     PROG_BEGIN
+08FE-50 00             7         .DA PROG_END-PROG_BEGIN
+FDF0-                  8 cout    .eq $fdf0
+0900-                  9
+0900-                 10 PROG_BEGIN
+0900-                 11 * part 1
+0900-A9 C1            12         lda #"A"	; spelling out "APPLE"
+0902-20 F0 FD         13         jsr cout	; and outputting using
+0905-A9 D0            14         lda #"P"	; the built-in monitor
+0907-20 F0 FD         15         jsr cout	; routines
+090A-20 F0 FD         16         jsr cout	; directly printing
+090D-A9 CC            17         lda #"L"	; one letter at a time
+090F-20 F0 FD         18         jsr cout
+0912-A9 C5            19         lda #"E"
+0914-20 F0 FD         20         jsr cout
+0917-60               21         rts
+0918-                 22
+0918-                 23 * part 2
+0918-A2 05            24         ldx #$05	; the number of letters
+091A-BD 24 09         25 more2   lda text,x	; place in acc like before
+091D-20 F0 FD         26         jsr cout	; print it
+0920-CA               27         dex	; decrease x-index register by one (1)
+0921-10 F7            28         bpl more2	; still have more to print
+0923-60               29 done    rts
+0924-C5 CC D0 D0 
+     C1               30 text    .hs c5ccd0d0c1	; ELPPA (backwards APPLE)
+0929-                 31
+0929-                 32 * part 3
+0929-A2 00            33         ldx #$00	; load our index with zero
+092B-BD 36 09         34 more3   lda text2,x	; grab the text form below
+092E-F0 F3            35         beq done	; if it's 00, no more text
+0930-20 F0 FD         36         jsr cout	; print it
+0933-E8               37         inx	; get next letter
+0934-D0 F5            38         bne more3	; branch if x is not equal to zero (0)
+0936-C1 D0 D0 CC 
+     C5 00            39 text2   .hs c1d0d0ccc500	; text in order (APPLE)
+093C-                 40
+093C-                 41 * part 4
+0000-                 42 zploc   .eq     $00	; define our zero-page address
+093C-A9 36            43         lda #text2	; put the pointer in zero-page
+093E-85 00            44         sta zploc	; lower byte --> zero page
+0940-A9 09            45         lda /text2	; grab higher byte of address
+0942-85 01            46         sta zploc+1	; higher byte --> zero page
+0944-A0 00            47         ldy #$00	; set index to zero (0)
+0946-B1 00            48 more4   lda (zploc),y	; grab indirect index to our text
+0948-F0 D9            49         beq done	; if zero (0) then exit
+094A-20 F0 FD         50         jsr cout	; print it!
+094D-C8               51         iny	; increment our index to get the next letter
+094E-D0 F6            52         bne more4	; branch of y is not zero (0)
+0950-                 53
+0950-                 54 PROG_END
