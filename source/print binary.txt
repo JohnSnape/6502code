@@ -1,0 +1,15 @@
+0800-   A9 22       LDA   #$22          
+0802-   18          CLC                 
+0803-   85 00       STA   $00           
+0805-   A2 08       LDX   #$08          
+0807-   CA          DEX                 
+0808-   30 12       BMI   $081C         
+080A-   06 00       ASL   $00           
+080C-   90 07       BCC   $0815         
+080E-   A9 B1       LDA   #$B1          
+0810-   20 F0 FD    JSR   $FDF0         
+0813-   D0 F2       BNE   $0807         
+0815-   A9 B0       LDA   #$B0          
+0817-   20 F0 FD    JSR   $FDF0         
+081A-   D0 EB       BNE   $0807         
+081C-   60          RTS
