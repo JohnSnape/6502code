@@ -1,0 +1,160 @@
+ xc
+ org $800
+
+* Equates
+cold equ $1200
+key equ $c000
+strobe equ $c010
+home equ $fc58
+cout equ $fded
+mainread equ $C002
+auxread equ $C003
+mainwrite equ $C004
+auxwrite equ $C005
+
+* Code
+ hex 01
+ txa  ; #$50 = %0101 0000
+ pha
+ lsr  ; > 0010 1000
+ lsr  ; > 0001 0100
+ lsr  ; > 0000 1010
+ lsr  ; > 0000 0101
+ ora #$C0 ; > #$C5
+ pha
+ sta reboot+2 ; in case we need to reboot
+ sta a1+2 ; fix entry address for ProDOS PC entry
+ sta a3+2 ; fix call address for PC entry
+a1 lda $FFFF ; > $C5FF
+ clc
+ adc #3 ; get PC entry low byte
+ sta a3+1 ; set PC entry byte
+
+* Check for 128K
+ jsr chk80
+ bcs error
+
+* Check for 65C02 processor
+ lda #$99
+ clc
+ sed
+ adc #1
+ cld
+ bpl a2 ; success!
+
+* Error routine
+error lda #<msg1 ;4C 00 20
+ sta pr1+1
+ lda #>msg1
+ sta pr1+2
+ jsr print
+ sta strobe
+restart lda key
+ bpl restart
+ sta strobe
+reboot jmp $FF00
+
+* Load blocks 000000-000018
+a2 lda #<msg2
+ sta pr1+1
+ lda #>msg2
+ sta pr1+2
+ jsr print
+
+a3 jsr $FFFF ; call PC
+ hex 01 ; read block
+ da rdblock
+ bcs error
+ inc rbuffer+1
+ inc rbuffer+1
+ inc rblock
+
+* read equivalent of three tracks (24 blocks)
+ lda rblock
+ cmp #25 ; $19
+ bcc a3 ; blocks 0-24 > $1000-3FFF
+ pla  ; $Cx
+ sta $fe
+ pla  ; $x0
+ sta $ff
+ ldx $ff
+ txs
+ jmp cold
+
+* print message routine
+print jsr home ; home/clear screen
+ ldy #0
+pr1 lda $ffff,y
+ beq pr2
+ jsr cout ; print ASCII char on screen
+ iny
+ bne pr1
+pr2 rts
+
+* check for 128K memory
+chk80 clc
+ ldx #rend-routine
+move lda routine,x
+ sta $100,x
+ dex
+ bpl move
+ jmp $0100
+
+* routine from ProDOS 8
+routine lda #$ee
+ sta auxread ; loads in aux $0200-BFFF
+ sta auxwrite
+ sta $0c00
+ sta $7c00
+ lda $0c00
+ cmp #$ee ; first check
+ bne noaux
+ asl $0c00
+ asl
+ cmp $0c00 ; second check
+ bne noaux
+ cmp $7c00 ; third check
+ bne auxil
+noaux sec
+ bcs r1
+auxil clc
+r1 sta mainread
+ sta mainwrite
+ rts
+rend equ *
+
+* Messages
+msg1 asc "ERROR LOADING.",8d
+ asc "PRESS ANY KEY TO RESTART:",00
+msg2 asc "FIFTH programming language v0.01a",8d
+ asc "Just a moment...",00
+
+* PC call block
+rdblock hex 03 ; parameter count
+ hex 01 ; unit number
+rbuffer hex 0010 ; $1000
+rblock hex 000000 ; block number to read
+
+
+
+
+ xc
+ org $1200
+cout equ $fded
+monz equ $ff69 ; call-151
+
+ ldy #msgend-msg
+loop lda msg,y
+ jsr cout
+ dey
+ bpl loop
+ jmp monz
+
+msg rev "Reached $1200, second stage boot"
+msgend equ *
+
+
+
+
+
+
