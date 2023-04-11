@@ -1,0 +1,38 @@
+                1    * The standard Apple II "Air-raid" bell has
+                2    * been replaced with a gentler tone. Use it
+                3    * to give users some aural feedback that
+                4    * they are using a ProDOS program.
+                5    * The code for it follows.
+                6    *
+                7    SPKR     EQU   $C030      ;this clicks the speaker
+                8    *
+8000: 00        9    LENGTH   DS    1          ;duration of tone
+                10   *
+                11   * This is the wait routine from the Monitor ROM.
+                12   *
+8001: 38        13   WAIT     SEC              
+8002: 48        14   WAIT2    PHA              
+8003: E9 01     15   WAIT3    SBC   #1         
+8005: D0 FC     16            BNE   WAIT3      
+8007: 68        17            PLA              
+8008: E9 01     18            SBC   #1         
+800A: D0 F6     19            BNE   WAIT2      
+800C: 60        20            RTS              
+                21   *
+                22   * Generate a nice little tone
+                23   * Exits with Z-flag set (BEQ) for branching
+                24   * Destroys the contents of the accumulator
+                25   *
+800D: A9 20     26   BELL     LDA   #$20       ;duration of tone
+800F: 8D 00 80  27            STA   LENGTH     
+8012: A9 02     28   BELL1    LDA   #$2        ;short delay...click
+8014: 20 01 80  29            JSR   WAIT       
+8017: 8D 30 C0  30            STA   SPKR       
+801A: A9 20     31            LDA   #$20       ;long delay...click
+801C: 20 01 80  32            JSR   WAIT       
+801F: 8D 30 C0  33            STA   SPKR       
+8022: CE 00 80  34            DEC   LENGTH     
+8025: D0 EB     35            BNE   BELL1      ;repeat LENGTH times
+8027: 60        36            RTS              
+
+--End assembly, 40 bytes, Errors: 0
